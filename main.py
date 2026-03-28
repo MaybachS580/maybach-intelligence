@@ -15,6 +15,14 @@ from scraper import SocialMediaScraper
 from analyzer import ContentAnalyzer
 from reporter import ReportGenerator
 
+# 通知模块（可选）
+try:
+    from notifier import WeChatNotifier, quick_notify
+    NOTIFIER_AVAILABLE = True
+except ImportError:
+    NOTIFIER_AVAILABLE = False
+    print("⚠️  未安装 wxauto，微信推送功能不可用")
+
 # 默认API配置（支持 OpenAI / Claude / 通义千问 等）
 DEFAULT_CONFIG = {
     "api_provider": "openai",   # openai | claude | dashscope
@@ -31,9 +39,9 @@ class MaybachIntelligence:
         self.analyzer = ContentAnalyzer(self.config)
         self.report = ReportGenerator()
 
-    def run_full_pipeline(self, keywords: list[str]) -> dict:
+    def run_full_pipeline(self, keywords: list[str], notify: bool = False, contact: str = "文件传输助手") -> dict:
         """
-        完整pipeline：抓取 → 分析 → 生成报告
+        完整pipeline：抓取 → 分析 → 生成报告 → 推送微信
         """
         print(f"\n{'='*50}")
         print(f"  迈巴赫商业情报台 | {datetime.now().strftime('%Y-%m-%d %H:%M')}")
@@ -73,9 +81,19 @@ class MaybachIntelligence:
         results["opportunities"] = opportunities
         print(f"    ✓ 发现 {len(opportunities)} 个变现机会")
 
-        # 生成报告
+        # Step 5: 生成报告
+        print("\n[5/5] 生成分析报告...")
         report_path = self.report.generate(results)
-        print(f"\n📋 报告已生成: {report_path}")
+        print(f"    ✓ 报告已生成: {report_path}")
+
+        # Step 6: 微信推送（可选）
+        if notify and NOTIFIER_AVAILABLE:
+            print(f"\n[6/6] 推送微信通知...")
+            success = quick_notify(results, contact=contact)
+            if success:
+                print(f"    ✓ 已发送至「{contact}」")
+            else:
+                print(f"    ⚠️ 微信推送失败，请检查微信是否运行")
 
         return results
 
@@ -90,9 +108,20 @@ def main():
         "小红书运营",
     ]
 
-    # 首次运行引导
-    if len(sys.argv) > 1:
-        keywords = sys.argv[1:]
+    notify = False
+    contact = "文件传输助手"
+
+    # 解析参数
+    args = sys.argv[1:]
+    if "--notify" in args or "-n" in args:
+        notify = True
+        args = [a for a in args if a not in ("--notify", "-n")]
+    if "--contact" in args:
+        idx = args.index("--contact")
+        contact = args[idx + 1] if idx + 1 < len(args) else contact
+        args = [a for a in args if a != "--contact" and a != contact]
+    if args:
+        keywords = args
 
     # 检查API Key
     if not os.getenv("OPENAI_API_KEY"):
@@ -102,7 +131,7 @@ def main():
 
     try:
         bot = MaybachIntelligence()
-        results = bot.run_full_pipeline(keywords)
+        results = bot.run_full_pipeline(keywords, notify=notify, contact=contact)
 
         print("\n" + "="*50)
         print("  ✅ 分析完成！Top 3 变现机会:")
