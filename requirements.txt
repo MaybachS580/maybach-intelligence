@@ -1,0 +1,14 @@
+# 迈巴赫商业情报台 依赖
+
+# 网络请求
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# AI分析（至少安装一个）
+openai>=1.12.0
+anthropic>=0.18.0
+
+# 可选增强
+lxml>=5.1.0        # 更快的HTML解析
+rich>=13.7.0       # 终端美化输出
+python-dotenv>=1.0.0  # 环境变量管理
